@@ -22,20 +22,22 @@ Desenvolvimento local:
 cargo build --release && herdr plugin link .
 ```
 
-Atalho (em `config.toml` do herdr):
+Atalho: o `plugin install` adiciona `prefix+i` ao seu `config.toml` do herdr (idempotente; o prefix padrão é `ctrl+b`, então `ctrl+b` e depois `i`). Depois rode `herdr server reload-config`. Com `plugin link` o script não roda; adicione à mão:
 
 ```toml
 [[keys.command]]
-key = "prefix+k"
+key = "prefix+i"
 type = "plugin_action"
 command = "manoel-freitas.kanban.open"
 description = "kanban"
 ```
 
+`prefix+k` não serve: o herdr já usa para `focus_pane_up`. Para trocar a tecla, edite o `key` no seu `config.toml`.
+
 ## Como usar
 
 1. Foque um workspace do herdr que seja um repositório git com remote no GitHub.
-2. Abra o quadro: `prefix+k`, a ação **Open Kanban board** ou `herdr plugin action invoke open --plugin manoel-freitas.kanban`. Ele abre como overlay sobre o painel ativo.
+2. Abra o quadro: `prefix+i` (`ctrl+b`, `i`), a ação **Open Kanban board** ou `herdr plugin action invoke open --plugin manoel-freitas.kanban`. Ele abre como overlay sobre o painel ativo.
 3. Navegue com `h j k l` (ou setas), mova o card selecionado com `H` / `L`, aperte `Enter` para focar o agente do card e `q` para sair.
 
 Colunas: **Todo**, **In Progress**, **Review**, **Done**, mais **Agents (no issue)** quando há agentes sem issue. Cada card mostra na 2ª linha o agente (`🤖 omp w6:p1 working`), o assignee (`@login`) ou `unassigned`.

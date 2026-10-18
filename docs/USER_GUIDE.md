@@ -7,7 +7,7 @@ Como usar o quadro Kanban do herdr-kanban no dia a dia.
 1. Instale o plugin (ver [README](../README.md#instalação)) e confirme que o `gh` está autenticado: `gh auth status`.
 2. No herdr, deixe focado um workspace que seja um repositório git com remote no GitHub.
 3. Abra o quadro:
-   - pelo atalho configurado (`prefix+k`, ver README), ou
+   - pelo atalho `prefix+i` (`ctrl+b`, depois `i`; ver README), ou
    - pela paleta de ações do herdr: **Open Kanban board**, ou
    - pela CLI: `herdr plugin action invoke open --plugin manoel-freitas.kanban`.
 
