@@ -64,6 +64,10 @@ Detalhes (regras de colunas, movimentos, cores, atualização automática, probl
 | `o` | abrir a issue no navegador |
 | `r` | atualizar |
 | `q` / `Esc` | sair |
+| clique | seleciona o card |
+| duplo clique | foca o agente do card (como `Enter`) |
+| arrastar card para outra coluna | move o card (como `H` / `L`, escreve no GitHub) |
+| roda do mouse | rola os cards da coluna sob o cursor |
 
 Issues atualizam a cada 30 s, agentes a cada 3 s.
 

@@ -104,6 +104,17 @@ Notas:
 | `r` | recarrega issues e agentes agora |
 | `q` / `Esc` | fecha o quadro |
 
+### Mouse
+
+| Gesto | Ação |
+|-------|------|
+| clique | seleciona o card (ou a coluna, se clicar em área vazia) |
+| duplo clique | foca o agente do card e fecha o quadro (como `Enter`) |
+| arrastar e soltar em outra coluna | move o card, inclusive saltando colunas (ex.: Todo → Done). Escreve no GitHub como `H` / `L` |
+| roda do mouse | seleciona o card anterior / seguinte na coluna sob o cursor |
+
+Soltar o card na mesma coluna não faz nada. Se o mouse não responder dentro do herdr, confira se `ui.mouse_capture` está habilitado na config do herdr.
+
 ## 6. Atualização automática
 
 - Agentes: a cada 3 s.

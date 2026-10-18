@@ -4,14 +4,22 @@ mod sys;
 use board::{Agent, Board, Column, Issue, Label, build, owner_line};
 use ratatui::{
     DefaultTerminal, Frame,
-    crossterm::event::{self, Event, KeyCode, KeyEventKind},
-    layout::{Alignment, Constraint, Layout},
+    crossterm::{
+        event::{
+            self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind,
+            MouseButton, MouseEvent, MouseEventKind,
+        },
+        execute,
+    },
+    layout::{Alignment, Constraint, Layout, Position, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Text},
     widgets::{Block, List, ListItem, ListState, Paragraph, Wrap},
 };
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::{Duration, Instant};
+
+const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 
 enum Req {
     Refresh,
@@ -58,6 +66,13 @@ struct App {
     loaded: bool,
     refreshed: Option<Instant>,
     tx: Sender<Req>,
+    /// Per-column list state; keeps the scroll offset the mouse hit-test needs.
+    states: [ListState; 5],
+    /// Column rects from the last draw.
+    areas: Vec<Rect>,
+    /// Card under the mouse button, for drag-to-move.
+    drag_from: Option<usize>,
+    last_click: Option<(usize, usize, Instant)>,
 }
 
 impl App {
@@ -99,10 +114,17 @@ impl App {
 
     fn move_selected(&mut self, delta: isize) {
         let to = self.col as isize + delta;
-        if self.col >= 4 || !(0..4).contains(&to) {
+        if (0..4).contains(&to) {
+            self.move_to(to as usize);
+        }
+    }
+
+    /// Moves the selected card to column `to` (optimistic; GitHub is written by the worker).
+    fn move_to(&mut self, to: usize) {
+        if self.col >= 4 || to >= 4 || to == self.col {
             return;
         }
-        let to = Column::ALL[to as usize];
+        let to = Column::ALL[to];
         let Some(card) = self.board.columns[self.col].get(self.row) else { return };
         let orig = card.issue.clone();
         let n = orig.number;
@@ -128,6 +150,18 @@ impl App {
         } else {
             self.board.columns[self.col].get(self.row)?.agents.first()
         }
+    }
+
+    /// Focuses the selected card's agent. Returns true when the app should exit.
+    fn focus(&mut self) -> bool {
+        match self.selected_agent() {
+            None => self.note = Some("no agent linked".into()),
+            Some(a) => match sys::focus_agent(&a.pane_id) {
+                Ok(()) => return true,
+                Err(e) => self.note = Some(e),
+            },
+        }
+        false
     }
 
     /// Returns true when the app should exit.
@@ -161,13 +195,68 @@ impl App {
                     }
                 }
             }
-            KeyCode::Enter => match self.selected_agent() {
-                None => self.note = Some("no agent linked".into()),
-                Some(a) => match sys::focus_agent(&a.pane_id) {
-                    Ok(()) => return true,
-                    Err(e) => self.note = Some(e),
-                },
-            },
+            KeyCode::Enter => return self.focus(),
+            _ => {}
+        }
+        false
+    }
+
+    /// Column under the cell and the card row there (None on borders/empty space).
+    fn hit(&self, x: u16, y: u16) -> Option<(usize, Option<usize>)> {
+        let col = self.areas.iter().position(|a| a.contains(Position::new(x, y)))?;
+        let a = self.areas[col];
+        let row = y
+            .checked_sub(a.y + 1)
+            .filter(|_| y + 1 < a.y + a.height)
+            // cards are 2 lines tall
+            .map(|d| self.states[col].offset() + usize::from(d) / 2)
+            .filter(|r| *r < self.col_len(col));
+        Some((col, row))
+    }
+
+    /// Returns true when the app should exit.
+    fn mouse(&mut self, m: MouseEvent) -> bool {
+        let hit = self.hit(m.column, m.row);
+        match m.kind {
+            MouseEventKind::Down(MouseButton::Left) => {
+                self.note = None;
+                let Some((col, row)) = hit else { return false };
+                self.col = col;
+                self.drag_from = row;
+                let Some(row) = row else {
+                    self.row = self.row.min(self.col_len(col).saturating_sub(1));
+                    return false;
+                };
+                self.row = row;
+                let double = self
+                    .last_click
+                    .is_some_and(|(c, r, t)| (c, r) == (col, row) && t.elapsed() < DOUBLE_CLICK);
+                if double {
+                    self.last_click = None;
+                    return self.focus();
+                }
+                self.last_click = Some((col, row, Instant::now()));
+            }
+            MouseEventKind::Up(MouseButton::Left) => {
+                // Card was picked on Down (self.col/self.row); dropping on another column moves it.
+                if self.drag_from.take().is_some() {
+                    if let Some((to, _)) = hit {
+                        self.move_to(to);
+                    }
+                }
+            }
+            MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+                let Some((col, _)) = hit else { return false };
+                if col != self.col {
+                    self.col = col;
+                    self.row = self.row.min(self.col_len(col).saturating_sub(1));
+                }
+                if m.kind == MouseEventKind::ScrollDown {
+                    self.row = (self.row + 1).min(self.col_len(col).saturating_sub(1));
+                } else {
+                    self.row = self.row.saturating_sub(1);
+                }
+            }
             _ => {}
         }
         false
@@ -186,10 +275,11 @@ impl App {
         }
     }
 
-    fn draw(&self, f: &mut Frame) {
+    fn draw(&mut self, f: &mut Frame) {
         let [main, foot] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
         let n = self.ncols();
         let areas = Layout::horizontal(vec![Constraint::Fill(1); n]).split(main);
+        self.areas = areas.to_vec();
         for (i, area) in areas.iter().enumerate() {
             let (title, items): (String, Vec<ListItem>) = if i < 4 {
                 let cards = &self.board.columns[i];
@@ -227,13 +317,11 @@ impl App {
             let list = List::new(items)
                 .block(Block::bordered().title(title))
                 .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
-            let mut st = ListState::default();
-            if i == self.col && self.col_len(i) > 0 {
-                st.select(Some(self.row));
-            }
-            f.render_stateful_widget(list, *area, &mut st);
+            let sel = (i == self.col && self.col_len(i) > 0).then_some(self.row);
+            self.states[i].select(sel);
+            f.render_stateful_widget(list, *area, &mut self.states[i]);
         }
-        let help = "←→/hl col  ↑↓/jk card  H/L move  ⏎ focus agent  o open  r refresh  q quit";
+        let help = "←→/hl col  ↑↓/jk card  H/L move  ⏎ focus agent  o open  r refresh  q quit  mouse: click · drag=move · 2×click=focus";
         f.render_widget(Paragraph::new(format!("{help} | {}", self.status())), foot);
     }
 }
@@ -276,6 +364,10 @@ fn run(term: &mut DefaultTerminal, ctx: sys::Ctx) -> std::io::Result<()> {
         loaded: false,
         refreshed: None,
         tx: req_tx,
+        states: std::array::from_fn(|_| ListState::default()),
+        areas: vec![],
+        drag_from: None,
+        last_click: None,
     };
     let (mut last_full, mut last_agents) = (Instant::now(), Instant::now());
     loop {
@@ -284,10 +376,10 @@ fn run(term: &mut DefaultTerminal, ctx: sys::Ctx) -> std::io::Result<()> {
         }
         term.draw(|f| app.draw(f))?;
         if event::poll(Duration::from_millis(250))? {
-            if let Event::Key(k) = event::read()? {
-                if k.kind == KeyEventKind::Press && app.key(k.code) {
-                    return Ok(());
-                }
+            match event::read()? {
+                Event::Key(k) if k.kind == KeyEventKind::Press && app.key(k.code) => return Ok(()),
+                Event::Mouse(m) if app.mouse(m) => return Ok(()),
+                _ => {}
             }
         }
         if last_full.elapsed() >= Duration::from_secs(30) {
@@ -304,10 +396,12 @@ fn run(term: &mut DefaultTerminal, ctx: sys::Ctx) -> std::io::Result<()> {
 fn main() -> std::io::Result<()> {
     let ctx = sys::resolve_ctx();
     let mut term = ratatui::init();
+    let _ = execute!(std::io::stdout(), EnableMouseCapture);
     let res = match ctx {
         Ok(ctx) => run(&mut term, ctx),
         Err(e) => error_screen(&mut term, &e),
     };
+    let _ = execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
     res
 }
