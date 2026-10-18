@@ -1,6 +1,8 @@
 # herdr-kanban
 
-Plugin do [herdr](https://github.com/herdrdev/herdr) que abre um quadro Kanban das issues do GitHub do workspace atual. Cada card mostra quem está trabalhando nele: um agente herdr ao vivo (com status) ou o assignee humano.
+Plugin do [herdr](https://github.com/herdrdev/herdr) que abre um quadro Kanban das issues do GitHub do workspace atual. Cada card mostra quem está trabalhando nele: um agente herdr ao vivo (com status) ou o assignee humano. Dá para mover cards entre colunas (grava no GitHub), pular para o painel do agente e abrir a issue no navegador.
+
+Guia completo: [docs/USER_GUIDE.md](docs/USER_GUIDE.md).
 
 ## Requisitos
 
@@ -30,10 +32,22 @@ command = "manoel-freitas.kanban.open"
 description = "kanban"
 ```
 
+## Como usar
+
+1. Foque um workspace do herdr que seja um repositório git com remote no GitHub.
+2. Abra o quadro: `prefix+k`, a ação **Open Kanban board** ou `herdr plugin action invoke open --plugin manoel-freitas.kanban`. Ele abre como overlay sobre o painel ativo.
+3. Navegue com `h j k l` (ou setas), mova o card selecionado com `H` / `L`, aperte `Enter` para focar o agente do card e `q` para sair.
+
+Colunas: **Todo**, **In Progress**, **Review**, **Done**, mais **Agents (no issue)** quando há agentes sem issue. Cada card mostra na 2ª linha o agente (`🤖 omp w6:p1 working`), o assignee (`@login`) ou `unassigned`.
+
+Para um agente aparecer no card da issue `N`, rode-o numa worktree `.worktrees/issue-N` ou ponha `#N` no título do terminal.
+
+Detalhes (regras de colunas, movimentos, cores, atualização automática, problemas comuns) no [guia do usuário](docs/USER_GUIDE.md).
+
 ## Convenções
 
 - Colunas por label: `status:todo`, `status:in-progress`, `status:review`. Issue fechada = Done. Sem label de status = Todo. Com `status:review` e `status:in-progress` ao mesmo tempo, vale Review.
-- Um agente é ligado a uma issue quando o `cwd` termina em `issue-<N>` (ex.: `.worktrees/issue-33`) ou quando o título do terminal contém `#N`. Agentes sem issue aparecem na coluna `Agents (no issue)`.
+- Um agente é ligado a uma issue quando o `cwd` termina em `issue-<N>` (ex.: `.worktrees/issue-33`) ou quando o título do terminal contém `#N`.
 - Label `agent:<nome>` marca um agente dono offline.
 - `HERDR_KANBAN_REPO=owner/nome` força o repositório, ignorando a detecção via `gh`.
 
