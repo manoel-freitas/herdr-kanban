@@ -1,0 +1,21 @@
+id = "manoel-freitas.kanban"
+name = "Kanban"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Kanban board of GitHub issues with live herdr agent status"
+platforms = ["linux", "macos"]
+
+[[build]]
+command = ["cargo", "build", "--release", "--locked"]
+
+[[actions]]
+id = "open"
+title = "Open Kanban board"
+contexts = ["workspace"]
+command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin \"$HERDR_PLUGIN_ID\" --entrypoint board --workspace \"$HERDR_WORKSPACE_ID\" --focus"]
+
+[[panes]]
+id = "board"
+title = "Kanban"
+placement = "overlay"
+command = ["./target/release/herdr-kanban"]
