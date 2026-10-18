@@ -12,7 +12,7 @@ command = ["cargo", "build", "--release", "--locked"]
 id = "open"
 title = "Open Kanban board"
 contexts = ["workspace"]
-command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin \"$HERDR_PLUGIN_ID\" --entrypoint board --workspace \"$HERDR_WORKSPACE_ID\" --focus"]
+command = ["sh", "-c", "exec \"$HERDR_BIN_PATH\" plugin pane open --plugin \"$HERDR_PLUGIN_ID\" --entrypoint board --focus"]
 
 [[panes]]
 id = "board"
