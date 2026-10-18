@@ -73,6 +73,8 @@ struct App {
     /// Card under the mouse button, for drag-to-move.
     drag_from: Option<usize>,
     last_click: Option<(usize, usize, Instant)>,
+    /// Last mouse cell; hover is recomputed from it every frame so it survives scroll/refresh.
+    mouse_pos: Option<(u16, u16)>,
 }
 
 impl App {
@@ -217,6 +219,7 @@ impl App {
     /// Returns true when the app should exit.
     fn mouse(&mut self, m: MouseEvent) -> bool {
         let hit = self.hit(m.column, m.row);
+        self.mouse_pos = Some((m.column, m.row));
         match m.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 self.note = None;
@@ -279,6 +282,10 @@ impl App {
         let [main, foot] = Layout::vertical([Constraint::Min(0), Constraint::Length(1)]).areas(f.area());
         let n = self.ncols();
         let areas = Layout::horizontal(vec![Constraint::Fill(1); n]).split(main);
+        let hover = self
+            .mouse_pos
+            .and_then(|(x, y)| self.hit(x, y))
+            .and_then(|(c, r)| Some((c, r?)));
         self.areas = areas.to_vec();
         for (i, area) in areas.iter().enumerate() {
             let (title, items): (String, Vec<ListItem>) = if i < 4 {
@@ -314,6 +321,14 @@ impl App {
                     .collect();
                 (format!("Agents (no issue) ({})", self.board.unlinked.len()), items)
             };
+            let items: Vec<ListItem> = items
+                .into_iter()
+                .enumerate()
+                .map(|(r, it)| {
+                    let hovered = hover == Some((i, r)) && (i, r) != (self.col, self.row);
+                    if hovered { it.style(Style::new().bg(Color::Indexed(238))) } else { it }
+                })
+                .collect();
             let list = List::new(items)
                 .block(Block::bordered().title(title))
                 .highlight_style(Style::new().add_modifier(Modifier::REVERSED));
@@ -368,6 +383,7 @@ fn run(term: &mut DefaultTerminal, ctx: sys::Ctx) -> std::io::Result<()> {
         areas: vec![],
         drag_from: None,
         last_click: None,
+        mouse_pos: None,
     };
     let (mut last_full, mut last_agents) = (Instant::now(), Instant::now());
     loop {

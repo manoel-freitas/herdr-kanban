@@ -64,6 +64,7 @@ Detalhes (regras de colunas, movimentos, cores, atualização automática, probl
 | `o` | abrir a issue no navegador |
 | `r` | atualizar |
 | `q` / `Esc` | sair |
+| passar o mouse | destaca o card sob o cursor |
 | clique | seleciona o card |
 | duplo clique | foca o agente do card (como `Enter`) |
 | arrastar card para outra coluna | move o card (como `H` / `L`, escreve no GitHub) |

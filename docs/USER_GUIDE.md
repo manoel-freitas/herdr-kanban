@@ -108,6 +108,7 @@ Notas:
 
 | Gesto | Ação |
 |-------|------|
+| passar o mouse | destaca o card sob o cursor (fundo cinza; o card selecionado mantém o destaque de seleção) |
 | clique | seleciona o card (ou a coluna, se clicar em área vazia) |
 | duplo clique | foca o agente do card e fecha o quadro (como `Enter`) |
 | arrastar e soltar em outra coluna | move o card, inclusive saltando colunas (ex.: Todo → Done). Escreve no GitHub como `H` / `L` |
